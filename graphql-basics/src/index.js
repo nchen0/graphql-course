@@ -46,9 +46,16 @@ const comments = [
 
 // Type Definitions (also known as app schema, which is what our data types look like)
 const typeDefs = `
-    type Mutation {
-        createUser(name: String!, email: String!, age: Int): User!
-        createPost(title: String!, body: String!, published: Boolean!, author: ID!)
+    type Mutation {        
+        createUser(data: CreateUserInput): User!
+        createPost(title: String!, body: String!, published: Boolean!, author: ID!): Post!
+        createComment(text: String!, author: ID!, post: ID!): Comment!
+    }
+
+    input CreateUserInput {
+        name: String!
+        email: String!
+        age: Int
     }
 
     type Query {
@@ -87,16 +94,14 @@ const typeDefs = `
 const resolvers = {
   Mutation: {
     createUser(parent, args, context, info) {
-      const emailTaken = users.some(user => user.email === args.email);
+      const emailTaken = users.some(user => user.email === args.data.email);
       if (emailTaken) {
         throw new Error("Email has already been taken.");
       }
 
       const user = {
         id: uuid(),
-        name: args.name,
-        email: args.email,
-        age: args.age
+        ...args.data
       };
 
       users.push(user);
@@ -107,6 +112,39 @@ const resolvers = {
       if (!userExists) {
         throw new Error("User doesn't exist.");
       }
+
+      const post = {
+        id: uuid(),
+        title: args.title,
+        body: args.body,
+        published: args.published,
+        author: args.author
+      };
+
+      posts.push(post);
+      return post;
+    },
+    createComment(parent, args, context, info) {
+      const userExists = users.some(user => user.id === args.author);
+
+      if (!userExists) {
+        throw new Error("User doesn't exist.");
+      }
+
+      const postExists = posts.some(post => post.id === args.post);
+      if (!postExists) {
+        throw new Error("Post doesn't exist.");
+      }
+
+      const comment = {
+        id: uuid(),
+        text: args.text,
+        author: args.author,
+        post: args.post
+      };
+      comments.push(comment);
+
+      return comment;
     }
   },
   Query: {
