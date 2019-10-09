@@ -1,4 +1,5 @@
 import { GraphQLServer } from "graphql-yoga";
+import uuid from "uuid/v4";
 
 // Demo user data
 const users = [
@@ -45,6 +46,11 @@ const comments = [
 
 // Type Definitions (also known as app schema, which is what our data types look like)
 const typeDefs = `
+    type Mutation {
+        createUser(name: String!, email: String!, age: Int): User!
+        createPost(title: String!, body: String!, published: Boolean!, author: ID!)
+    }
+
     type Query {
         grades: [Int!]!
         add(numbers: [Int!]): Int!
@@ -79,6 +85,30 @@ const typeDefs = `
 // Resolvers
 // Now we define our resolvers. We only have a singele operation, we are only going to define a single function.
 const resolvers = {
+  Mutation: {
+    createUser(parent, args, context, info) {
+      const emailTaken = users.some(user => user.email === args.email);
+      if (emailTaken) {
+        throw new Error("Email has already been taken.");
+      }
+
+      const user = {
+        id: uuid(),
+        name: args.name,
+        email: args.email,
+        age: args.age
+      };
+
+      users.push(user);
+      return user;
+    },
+    createPost(parent, args, context, info) {
+      const userExists = users.some(user => user.id === args.author);
+      if (!userExists) {
+        throw new Error("User doesn't exist.");
+      }
+    }
+  },
   Query: {
     grades(parent, args) {
       return [1, 3, 4];
