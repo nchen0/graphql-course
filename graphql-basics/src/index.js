@@ -21,9 +21,9 @@ const users = [
 ];
 
 const posts = [
-  { id: 1, title: "Elephant", body: "Animal", published: false },
-  { id: 2, title: "Lion", body: "Jungle Safari", published: true },
-  { id: 3, title: "Giraffe", body: "African Safari", published: false }
+  { id: 1, title: "Elephant", body: "Animal", published: false, author: 1 },
+  { id: 2, title: "Lion", body: "Jungle Safari", published: true, author: 1 },
+  { id: 3, title: "Giraffe", body: "African Safari", published: false, author: 2 }
 ];
 
 // Type Definitions (also known as app schema, which is what our data types look like)
@@ -39,12 +39,14 @@ const typeDefs = `
         name: String!
         email: String!
         age: Int
+        posts: [Post!]!
     }
     type Post {
         id: ID!
         title: String!
         body: String!
         published: Boolean!
+        author: User!
     }
 `;
 
@@ -77,6 +79,20 @@ const resolvers = {
       }
       return posts.filter(post => {
         return post.body.toLowerCase().includes(args.query.toLowerCase());
+      });
+    }
+  },
+  Post: {
+    author(parent, args) {
+      return users.find(user => {
+        return user.id === parent.author;
+      });
+    }
+  },
+  User: {
+    posts(parent, args) {
+      return posts.filter(post => {
+        return post.author === parent.id;
       });
     }
   }
