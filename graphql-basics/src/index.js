@@ -45,64 +45,6 @@ let comments = [
 ];
 
 // Type Definitions (also known as app schema, which is what our data types look like)
-const typeDefs = `
-    type Mutation {        
-        createUser(data: CreateUserInput): User!
-        deleteUser(id: ID!): User!
-        createPost(data: CreatePostInput): Post!
-        deletePost(id: ID!): Post!
-        createComment(data: CreateCommentInput): Comment!
-    }
-
-    input CreateUserInput {
-        name: String!
-        email: String!
-        age: Int
-    }
-
-    input CreatePostInput {
-      title: String!
-      body: String!
-      published: Boolean!
-      author: ID!
-    }
-
-    input CreateCommentInput {
-      text: String!
-      author: ID!
-      post: ID!
-    }
-
-    type Query {
-        grades: [Int!]!
-        add(numbers: [Int!]): Int!
-        users(query: String): [User!]!
-        posts(query: String): [Post!]!
-        comments: [Comment!]!
-    }
-    type User {
-        id: ID!
-        name: String!
-        email: String!
-        age: Int
-        posts: [Post!]!
-        comments: [Comment!]!
-    }
-    type Post {
-        id: ID!
-        title: String!
-        body: String!
-        published: Boolean!
-        author: User!
-        comments: [Comment]
-    }
-    type Comment {
-        id: ID!
-        text: String!
-        author: User!
-        post: Post!
-    }
-`;
 
 // Resolvers
 // Now we define our resolvers. We only have a singele operation, we are only going to define a single function.
@@ -161,6 +103,16 @@ const resolvers = {
 
       posts.push(post);
       return post;
+    },
+    deletePost(parent, args, context, info) {
+      const postExists = posts.findIndex(post => Number(post.id) === Number(args.id));
+      if (postExists < 0) {
+        throw new Error("Post does not exist");
+      }
+      const deleted = posts.splice(postExists, 1);
+      comments = comments.filter(comment => Number(comment.post) !== Number(args.id));
+
+      return deleted[0];
     },
     createComment(parent, args, context, info) {
       const userExists = users.some(user => Number(user.id) === Number(args.data.author));
@@ -258,7 +210,7 @@ const resolvers = {
 };
 
 const server = new GraphQLServer({
-  typeDefs,
+  typeDefs: "./src/schema.graphql",
   resolvers
 });
 
