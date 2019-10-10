@@ -2,7 +2,7 @@ import { GraphQLServer } from "graphql-yoga";
 import uuid from "uuid/v4";
 
 // Demo user data
-const users = [
+let users = [
   {
     id: 1,
     name: "Nicky",
@@ -21,13 +21,13 @@ const users = [
   }
 ];
 
-const posts = [
+let posts = [
   { id: 1, title: "Elephant", body: "Animal", published: false, author: 1 },
   { id: 2, title: "Lion", body: "Jungle Safari", published: true, author: 1 },
   { id: 3, title: "Giraffe", body: "African Safari", published: false, author: 2 }
 ];
 
-const comments = [
+let comments = [
   {
     id: 100,
     text: "That's awesome",
@@ -48,14 +48,29 @@ const comments = [
 const typeDefs = `
     type Mutation {        
         createUser(data: CreateUserInput): User!
-        createPost(title: String!, body: String!, published: Boolean!, author: ID!): Post!
-        createComment(text: String!, author: ID!, post: ID!): Comment!
+        deleteUser(id: ID!): User!
+        createPost(data: CreatePostInput): Post!
+        deletePost(id: ID!): Post!
+        createComment(data: CreateCommentInput): Comment!
     }
 
     input CreateUserInput {
         name: String!
         email: String!
         age: Int
+    }
+
+    input CreatePostInput {
+      title: String!
+      body: String!
+      published: Boolean!
+      author: ID!
+    }
+
+    input CreateCommentInput {
+      text: String!
+      author: ID!
+      post: ID!
     }
 
     type Query {
@@ -107,40 +122,63 @@ const resolvers = {
       users.push(user);
       return user;
     },
+    deleteUser(parent, args, context, info) {
+      const userIndex = users.findIndex(user => Number(user.id) === Number(args.id));
+      if (userIndex < 0) {
+        throw new Error("User not found");
+      }
+
+      // First we delete the user
+      const deleted = users.splice(userIndex, 1);
+
+      posts = posts.filter(post => {
+        const match = Number(post.author) === Number(args.id);
+        if (match) {
+          comments = comments.filter(comment => {
+            return Number(comment.post) !== Number(post.id);
+          });
+        }
+        return !match;
+      });
+      comments = comments.filter(comment => Number(comment.author) !== Number(args.id));
+
+      // We need to remove all associated posts and comments.
+      return deleted[0];
+    },
     createPost(parent, args, context, info) {
-      const userExists = users.some(user => user.id === args.author);
+      const userExists = users.some(user => Number(user.id) === Number(args.data.author));
       if (!userExists) {
         throw new Error("User doesn't exist.");
       }
 
       const post = {
         id: uuid(),
-        title: args.title,
-        body: args.body,
-        published: args.published,
-        author: args.author
+        title: args.data.title,
+        body: args.data.body,
+        published: args.data.published,
+        author: args.data.author
       };
 
       posts.push(post);
       return post;
     },
     createComment(parent, args, context, info) {
-      const userExists = users.some(user => user.id === args.author);
+      const userExists = users.some(user => Number(user.id) === Number(args.data.author));
 
       if (!userExists) {
         throw new Error("User doesn't exist.");
       }
 
-      const postExists = posts.some(post => post.id === args.post);
+      const postExists = posts.some(post => Number(post.id) === Number(args.data.post));
       if (!postExists) {
         throw new Error("Post doesn't exist.");
       }
 
       const comment = {
         id: uuid(),
-        text: args.text,
-        author: args.author,
-        post: args.post
+        text: args.data.text,
+        author: args.data.author,
+        post: args.data.post
       };
       comments.push(comment);
 
@@ -205,8 +243,10 @@ const resolvers = {
   },
   Comment: {
     author(parent, args) {
+      console.log("parent: ", parent);
+      console.log("users", users);
       return users.find(user => {
-        return user.id === parent.author;
+        return Number(user.id) === Number(parent.author);
       });
     },
     post(parent, args) {
